@@ -1,7 +1,7 @@
 #!/usr/bin/env tclsh
 #package require Expect
 
-source /root/xdj/func_base2.tcl
+source /root/xdj/func_base.tcl
 source /root/xdj/account
 
 #// whether use argv
