@@ -8,7 +8,6 @@ source /root/xdj/account
 set mymerchant [lindex $argv 0]
 
 
-while 1 {
     #// check available proxy
     #catch {exec /root/xdj/proxy/pxconfig.tcl} err
     #puts "Following proxy are checked\n$err"
@@ -16,10 +15,10 @@ while 1 {
 
 	#//query data
     if {$mymerchant==""} {
-        set url_table [exec mysql -u$usr -p$pwd -hlocalhost -e "use fantuan;select ID,price1,date1,url,merchant,owner,Product from xindijia where del=0 order by ID;"]
-        #set url_table [exec mysql -u$usr -p$pwd -hlocalhost -e "use fantuan;select ID,price1,date1,url,merchant,owner,product from xindijia where ID='73';"]
+        set url_table [exec $mysqldir/mysql -u$usr -p$pwd -hlocalhost -e "use fantuan;select ID,price1,date1,url,merchant,owner,Product from xindijia where del=0 order by ID;"]
+        #set url_table [exec $mysqldir/mysql -u$usr -p$pwd -hlocalhost -e "use fantuan;select ID,price1,date1,url,merchant,owner,product from xindijia where ID='73';"]
     } else {
-        set url_table [exec mysql -u$usr -p$pwd -hlocalhost -e "use fantuan;select ID,price1,date1,url,merchant,owner,Product from xindijia where merchant='$mymerchant';"]
+        set url_table [exec $mysqldir/mysql -u$usr -p$pwd -hlocalhost -e "use fantuan;select ID,price1,date1,url,merchant,owner,Product from xindijia where merchant='$mymerchant';"]
     }
     if {$url_table==""} {
         puts "ERROR: Didn't find any URL of this merchant, please check"
@@ -122,7 +121,7 @@ while 1 {
     		set cprice [lindex $price_list 1]
     		#// Bug, set status 9
             if {$cprice<=0 || $cprice==""} {
-    		    catch {exec mysql -u$usr -p$pwd -hlocalhost -e "use fantuan;update xindijia set status='9' where ID=$id;"}
+    		    catch {exec $mysqldir/mysql -u$usr -p$pwd -hlocalhost -e "use fantuan;update xindijia set status='9' where ID=$id;"}
                 #puts "No.$id current price is $cprice, best price is $price1"
 				puts "ERROR: No.$id failed to get price!"
     			continue
@@ -130,20 +129,22 @@ while 1 {
     		#// Best price, set status 1
     		if {$cprice<=$price1} {
 			    if {$cprice==$price1} {
-    		        catch {exec mysql -u$usr -p$pwd -hlocalhost -e "use fantuan;update xindijia set status='1',cdate='$cdate',date1='$cdate' where ID=$id;"}
+    		        catch {exec $mysqldir/mysql -u$usr -p$pwd -hlocalhost -e "use fantuan;update xindijia set status='1',cdate='$cdate',date1='$cdate' where ID=$id;"}
 				    set subject "$product 价格$cprice , 好价再袭！"
 		            set date1_seconds [clock scan $date1]
 		            set cdate_seconds [clock scan $cdate]
                     if {[expr $cdate_seconds - $date1_seconds]>86400} {
 				        set content "$product 价格$cprice , 上一次历史低价为$price1 时间是$date1. \n直达链接：www.aapay.net/track/#tracktable"
-                        set email [lindex [exec mysql -u$usr -p$pwd -hlocalhost -e "use fantuan;select email from test_user where username='$owner';"] 1]
+                        set email [lindex [exec $mysqldir/mysql -u$usr -p$pwd -hlocalhost -e "use fantuan;select email from test_user where username='$owner';"] 1]
+						set email ppray@163.com
 				        mailx $subject $content $email
                     }
 			    } else {
-    		        catch {exec mysql -u$usr -p$pwd -hlocalhost -e "use fantuan;update xindijia set status='1',cdate='$cdate',cprice='$cprice',price1='$cprice',date1='$cdate',price2='$cprice',date2='$cdate' where ID=$id;"}
+    		        catch {exec $mysqldir/mysql -u$usr -p$pwd -hlocalhost -e "use fantuan;update xindijia set status='1',cdate='$cdate',cprice='$cprice',price1='$cprice',date1='$cdate',price2='$cprice',date2='$cdate' where ID=$id;"}
 				    set subject "$product 价格$cprice , 新低价，速抢！！！"
 				    set content "$product 价格$cprice , 上一次历史低价为$price1 时间是$date1. \n直达链接：www.aapay.net/track/#tracktable"
-                    set email [lindex [exec mysql -u$usr -p$pwd -hlocalhost -e "use fantuan;select email from test_user where username='$owner';"] 1]
+                    set email [lindex [exec $mysqldir/mysql -u$usr -p$pwd -hlocalhost -e "use fantuan;select email from test_user where username='$owner';"] 1]
+					set email ppray@163.com
 				    mailx $subject $content $email
 				}
                 puts $subject
@@ -152,7 +153,7 @@ while 1 {
     		}
     		#// Good price, set status 2
             if {$cprice>$price1 && $cprice<=[expr $price1*1.1]} {
-    		    catch {exec mysql -u$usr -p$pwd -hlocalhost -e "use fantuan;update xindijia set status='2',cdate='$cdate',cprice='$cprice' where ID=$id;"}
+    		    catch {exec $mysqldir/mysql -u$usr -p$pwd -hlocalhost -e "use fantuan;update xindijia set status='2',cdate='$cdate',cprice='$cprice' where ID=$id;"}
                 puts "No.$id current price $cprice is good price, best price is $price1"
 				set subject "$product 价格$cprice , 近期好价！"
 				#set clean_url [regsub {http://} $url {}]
@@ -162,11 +163,11 @@ while 1 {
     		}
     		#// Just soso price, set status 3
             if {$cprice>[expr $price1*1.1] && $cprice<=[expr $price1*1.2]} {
-    		    catch {exec mysql -u$usr -p$pwd -hlocalhost -e "use fantuan;update xindijia set status='3',cdate='$cdate',cprice='$cprice' where ID=$id;"}
+    		    catch {exec $mysqldir/mysql -u$usr -p$pwd -hlocalhost -e "use fantuan;update xindijia set status='3',cdate='$cdate',cprice='$cprice' where ID=$id;"}
                 puts "No.$id current price $cprice is just so so, best price is $price1"
     		    continue
     		}
-    		catch {exec mysql -u$usr -p$pwd -hlocalhost -e "use fantuan;update xindijia set status='0',cdate='$cdate',cprice='$cprice' where ID=$id;"}
+    		catch {exec $mysqldir/mysql -u$usr -p$pwd -hlocalhost -e "use fantuan;update xindijia set status='0',cdate='$cdate',cprice='$cprice' where ID=$id;"}
             #puts "No.$id current price is $cprice, best price is $price1"
     		#puts $price_list
     		#puts $err
@@ -181,7 +182,6 @@ while 1 {
 	set duration [expr $timestamp2 - $timestamp1]
 	set sleeping [expr 21600 - $duration]
 	puts [exec date]
-	puts "Totally spent [expr $duration/60] minutes analyzing, Sleep [expr $sleeping/3600] hours"
-	after [expr $sleeping*1000]
-}
+	puts "Totally spent [expr $duration/60] minutes analyzing, won't Sleep [expr $sleeping/3600] hours"
+	#after [expr $sleeping*1000]
 
