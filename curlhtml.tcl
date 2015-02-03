@@ -4,8 +4,8 @@
 source /root/xdj/func_base.tcl
 source /root/xdj/account
 
-#// whether use argv
-set mymerchant [lindex $argv 0]
+#// whether use argv, special id
+set sid [lindex $argv 0]
 
 
     #// check available proxy
@@ -14,11 +14,11 @@ set mymerchant [lindex $argv 0]
     #puts "\n======== Start Tracking ========\n"
 
 	#//query data
-    if {$mymerchant==""} {
+    if {$sid==""} {
         set url_table [exec $mysqldir/mysql -u$usr -p$pwd -hlocalhost -e "use fantuan;select ID,price1,date1,url,merchant,owner,Product from xindijia where del=0 order by ID;"]
-        #set url_table [exec $mysqldir/mysql -u$usr -p$pwd -hlocalhost -e "use fantuan;select ID,price1,date1,url,merchant,owner,product from xindijia where ID='73';"]
+        #set url_table [exec $mysqldir/mysql -u$usr -p$pwd -hlocalhost -e "use fantuan;select ID,price1,date1,url,merchant,owner,product from xindijia where ID='71';"]
     } else {
-        set url_table [exec $mysqldir/mysql -u$usr -p$pwd -hlocalhost -e "use fantuan;select ID,price1,date1,url,merchant,owner,Product from xindijia where merchant='$mymerchant';"]
+        set url_table [exec $mysqldir/mysql -u$usr -p$pwd -hlocalhost -e "use fantuan;select ID,price1,date1,url,merchant,owner,Product from xindijia where ID='$sid';"]
     }
     if {$url_table==""} {
         puts "ERROR: Didn't find any URL of this merchant, please check"
@@ -123,20 +123,22 @@ set mymerchant [lindex $argv 0]
             if {$cprice<=0 || $cprice==""} {
     		    catch {exec $mysqldir/mysql -u$usr -p$pwd -hlocalhost -e "use fantuan;update xindijia set status='9' where ID=$id;"}
                 #puts "No.$id current price is $cprice, best price is $price1"
-				puts "ERROR: No.$id failed to get price!"
+		        puts "\n"
+				puts $info
+				puts "ERROR: No.$id failed to get price with proxy $proxy !"
+		        puts "\n"
     			continue
     		}
     		#// Best price, set status 1
     		if {$cprice<=$price1} {
 			    if {$cprice==$price1} {
-    		        catch {exec $mysqldir/mysql -u$usr -p$pwd -hlocalhost -e "use fantuan;update xindijia set status='1',cdate='$cdate',date1='$cdate' where ID=$id;"}
+    		        catch {exec $mysqldir/mysql -u$usr -p$pwd -hlocalhost -e "use fantuan;update xindijia set status='1',cprice='$cprice',cdate='$cdate',date1='$cdate' where ID=$id;"}
 				    set subject "$product 价格$cprice , 好价再袭！"
 		            set date1_seconds [clock scan $date1]
 		            set cdate_seconds [clock scan $cdate]
                     if {[expr $cdate_seconds - $date1_seconds]>86400} {
 				        set content "$product 价格$cprice , 上一次历史低价为$price1 时间是$date1. \n直达链接：www.aapay.net/track/#tracktable"
                         set email [lindex [exec $mysqldir/mysql -u$usr -p$pwd -hlocalhost -e "use fantuan;select email from test_user where username='$owner';"] 1]
-						set email ppray@163.com
 				        mailx $subject $content $email
                     }
 			    } else {
@@ -144,7 +146,7 @@ set mymerchant [lindex $argv 0]
 				    set subject "$product 价格$cprice , 新低价，速抢！！！"
 				    set content "$product 价格$cprice , 上一次历史低价为$price1 时间是$date1. \n直达链接：www.aapay.net/track/#tracktable"
                     set email [lindex [exec $mysqldir/mysql -u$usr -p$pwd -hlocalhost -e "use fantuan;select email from test_user where username='$owner';"] 1]
-					set email ppray@163.com
+					#set email ppray@163.com
 				    mailx $subject $content $email
 				}
                 puts $subject
