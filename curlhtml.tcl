@@ -31,7 +31,7 @@ set sid [lindex $argv 0]
     set proxylist [exec cat /root/xdj/proxy/proxylist.txt]
 	if {$proxylist==""} {
 	    puts "ERROR: No available Proxy"
-	    mailx "ERROR: No available Proxy" "ERROR: No available Proxy"
+	    pmailx "ERROR: No available Proxy" "ERROR: No available Proxy"
 	    return
 	}
 	# tp: total proxy number
@@ -73,7 +73,16 @@ set sid [lindex $argv 0]
                     }
 			        catch {exec curl -A "Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 5.1; Trident/4.0)" -x $proxy -o /root/xdj/html/$id $url} err
                     if [regexp -line {100\s+\d+[k]*} $err] {
-                        break
+    		            set page [exec cat /root/xdj/html/$id]
+						if [regexp -nocase {not a robot|自动程序} $page] {
+						    puts "ERROR: Proxy $proxy doesn't work for No.$id, skip to next proxy"
+						    continue
+						} elseif ![regexp {</body>} $page] {
+						    puts "ERROR: Page is not fully downloading, skip to next proxy"
+						    continue
+						} else {
+                            break
+						}
                     }
                 }
                 if {$retry>=$tp} {
@@ -93,12 +102,12 @@ set sid [lindex $argv 0]
 				#        puts $err
                 #        puts "ERROR: Proxy $proxy still dosen't work, tell administrator!!"
                 #        #puts "ERROR: Local IP still can't get page!!"
-				#        mailx "ERROR: Proxy $proxy still can't get page for $id" $err
+				#        pmailx "ERROR: Proxy $proxy still can't get page for $id" $err
 				#	}
                 #}
 		    } else {
                 puts "ERROR: No proxy!!"
-				mailx "ERROR: No proxy!!"
+				pmailx "ERROR: No proxy!!"
 			    catch {exec curl -A "Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 5.1; Trident/4.0)" -o /root/xdj/html/$id $url} err
 		    }
             if {$p_index>=[expr $tp-1]} {
@@ -116,7 +125,6 @@ set sid [lindex $argv 0]
     		#}
 
     		#// Get price
-    		set page [exec cat /root/xdj/html/$id]
     		set price_list [get_price $merchant $page]
     		set cprice [lindex $price_list 1]
     		#// Bug, set status 9
@@ -124,8 +132,8 @@ set sid [lindex $argv 0]
     		    catch {exec $mysqldir/mysql -u$usr -p$pwd -hlocalhost -e "use fantuan;update xindijia set status='9' where ID=$id;"}
                 #puts "No.$id current price is $cprice, best price is $price1"
 		        puts "\n"
-				puts $info
 				puts "ERROR: No.$id failed to get price with proxy $proxy !"
+			    puts "curl -A \"Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 5.1; Trident/4.0)\" -x $proxy -o /root/xdj/html/$id $url"
 		        puts "\n"
     			continue
     		}
@@ -133,23 +141,25 @@ set sid [lindex $argv 0]
     		if {$cprice<=$price1} {
 			    if {$cprice==$price1} {
     		        catch {exec $mysqldir/mysql -u$usr -p$pwd -hlocalhost -e "use fantuan;update xindijia set status='1',cprice='$cprice',cdate='$cdate',date1='$cdate' where ID=$id;"}
-				    set subject "$product 价格$cprice , 好价再袭！"
+				    set synopsis "$product 价格$cprice , 好价再袭！"
 		            set date1_seconds [clock scan $date1]
 		            set cdate_seconds [clock scan $cdate]
                     if {[expr $cdate_seconds - $date1_seconds]>86400} {
-				        set content "$product 价格$cprice , 上一次历史低价为$price1 时间是$date1. \n直达链接：www.aapay.net/track/#tracktable"
+				        set content "$product 价格$cprice , 上一次历史低价为$price1 时间是$date1. \n查看：www.aapay.net/track/#tracktable"
                         set email [lindex [exec $mysqldir/mysql -u$usr -p$pwd -hlocalhost -e "use fantuan;select email from test_user where username='$owner';"] 1]
-				        mailx $subject $content $email
+				        puts "pmailx $synopsis $content $email"
+				        pmailx $synopsis $content $email
                     }
 			    } else {
     		        catch {exec $mysqldir/mysql -u$usr -p$pwd -hlocalhost -e "use fantuan;update xindijia set status='1',cdate='$cdate',cprice='$cprice',price1='$cprice',date1='$cdate',price2='$cprice',date2='$cdate' where ID=$id;"}
-				    set subject "$product 价格$cprice , 新低价，速抢！！！"
-				    set content "$product 价格$cprice , 上一次历史低价为$price1 时间是$date1. \n直达链接：www.aapay.net/track/#tracktable"
+				    set synopsis "$product 价格$cprice , 新低价，速抢！！！"
+				    set content "$product 价格$cprice , 上一次历史低价为$price1 时间是$date1. \n查看：www.aapay.net/track/#tracktable"
                     set email [lindex [exec $mysqldir/mysql -u$usr -p$pwd -hlocalhost -e "use fantuan;select email from test_user where username='$owner';"] 1]
 					#set email ppray@163.com
-				    mailx $subject $content $email
+				    puts "pmailx $synopsis $content $email"
+				    pmailx $synopsis $content $email
 				}
-                puts $subject
+                puts $synopsis
                 #puts "No.$id current price $cprice is best, last best price was $price1 !!!"
     		    continue
     		}
@@ -157,10 +167,10 @@ set sid [lindex $argv 0]
             if {$cprice>$price1 && $cprice<=[expr $price1*1.1]} {
     		    catch {exec $mysqldir/mysql -u$usr -p$pwd -hlocalhost -e "use fantuan;update xindijia set status='2',cdate='$cdate',cprice='$cprice' where ID=$id;"}
                 puts "No.$id current price $cprice is good price, best price is $price1"
-				set subject "$product 价格$cprice , 近期好价！"
+				set synopsis "$product 价格$cprice , 近期好价！"
 				#set clean_url [regsub {http://} $url {}]
-				#set content "$product 价格$cprice , 上一次历史低价为$price1 时间是$date1. \n直达链接：$clean_url"
-				#mailx $subject $content
+				#set content "$product 价格$cprice , 上一次历史低价为$price1 时间是$date1. \n查看：$clean_url"
+				#pmailx $synopsis $content
     		    continue
     		}
     		#// Just soso price, set status 3
