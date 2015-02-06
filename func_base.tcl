@@ -41,7 +41,7 @@ proc get_price {merchant page} {
 }
 
 ## Send mail by mailx
-proc mailx {subject content {email aapay2012@sina.com}} {
+proc pmailx {subject content {email aapay2012@sina.com}} {
     catch {exec echo $content | mailx -s $subject $email} err   
 	#puts $subject 
 	#puts $content
